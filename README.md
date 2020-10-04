@@ -1,6 +1,8 @@
-# csharp-operator-sdk
+![.NET Core](https://github.com/falox/csharp-operator-sdk/workflows/.NET%20Core/badge.svg?branch=master)
 
-C# SDK for building Kubernetes Operators
+# C# Operator SDK
+
+SDK for building Kubernetes operators in C# on .NET Core. 
 
 ## Roadmap
 
