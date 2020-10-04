@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>k8s.Operators</AssemblyName>
+    <Version>1.0.0-alpha1</Version>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>    
+  </PropertyGroup>
+  
+  <PropertyGroup>
+		<IsPackable>True</IsPackable>
+		<PackageId>k8s.Operators</PackageId>
+		<Title>C# Operator SDK</Title>
+		<Description>C# SDK for building Kubernetes Operators</Description>
+		<Authors>Alberto Falossi</Authors>
+		<PackageTags>kubernetes;operator;operators;c#</PackageTags>
+		<PackageProjectUrl>https://github.com/falox/csharp-operator-sdk</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/falox/csharp-operator-sdk</RepositoryUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="KubernetesClient" Version="2.0.30" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="3.1.8" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,6 @@
+apiVersion: "csharp-operator.example.com/v1"
+kind: MyResource
+metadata:
+    name: mr1
+spec:
+    desiredProperty: 1
