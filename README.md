@@ -3,7 +3,7 @@
 
 # C# Operator SDK
 
-The C# Operator SDK implements a framework to build [Kubernets operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
+The C# Operator SDK implements a framework to build [Kubernetes operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
 
 ## Usage
 
