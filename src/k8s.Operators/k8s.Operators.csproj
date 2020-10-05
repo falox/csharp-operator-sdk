@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AssemblyName>k8s.Operators</AssemblyName>
-    <Version>1.0.0-alpha1</Version>
+    <Version>1.0.0-alpha2</Version>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>    
   </PropertyGroup>
@@ -12,9 +12,9 @@
 		<IsPackable>True</IsPackable>
 		<PackageId>k8s.Operators</PackageId>
 		<Title>C# Operator SDK</Title>
-		<Description>C# SDK for building Kubernetes Operators</Description>
+		<Description>Build Kubernetes operators with C# and .NET Core</Description>
 		<Authors>Alberto Falossi</Authors>
-		<PackageTags>kubernetes;operator;operators;c#</PackageTags>
+		<PackageTags>kubernetes;operator;operators;c#;.net</PackageTags>
 		<PackageProjectUrl>https://github.com/falox/csharp-operator-sdk</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/falox/csharp-operator-sdk</RepositoryUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
