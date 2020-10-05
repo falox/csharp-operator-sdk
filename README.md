@@ -25,5 +25,5 @@ In the `/samples/basic` directory you find a [sample operator](./samples/basic/R
 
 ## References
 
-- Jason Dobies and Joshua Wood, [Kubernetes Operators](https://www.redhat.com/cms/managed-files/cl-oreilly-kubernetes-operators-ebook-f21452-202001-en_2.pdf), O'Reilly, 2020
+- Jason Dobies and Joshua Wood, [Kubernetes Operators](https://www.oreilly.com/library/view/kubernetes-operators/9781492048039/), O'Reilly, 2020
 - Radu Matei, [Writing controllers for Kubernetes CRDs with C#](https://radu-matei.com/blog/kubernetes-controller-csharp/), 2019
