@@ -3,7 +3,13 @@
 
 # C# Operator SDK
 
-SDK for building Kubernetes operators in C# on .NET Core. 
+The C# Operator SDK implements a framework to build [Kubernets operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
+
+## Usage
+
+In the `/samples/basic` directory you find a [sample operator](./samples/basic/README.md) that simulates the interaction with an external service and can be used as a template for real-world operators. 
+
+[Follow the instructions](./samples/basic/README.md) to run it locally and deploy it to Kubernetes.
 
 ## Roadmap
 
