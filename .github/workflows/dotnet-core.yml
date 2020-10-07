@@ -34,6 +34,15 @@ jobs:
       run: dotnet build --configuration Release --no-restore
     - name: Test
       run: dotnet test --no-restore --verbosity normal
+    - name: Generate coverage report
+      run: |
+        cd ./tests/k8s.Operators.Tests/
+        dotnet test /p:CollectCoverage=true /p:CoverletOutput=TestResults/ /p:CoverletOutputFormat=lcov
+    - name: Publish coverage report to coveralls.io
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: ./tests/k8s.Operators.Tests/TestResults/coverage.info       
     - name: Pack
       run: dotnet pack --configuration Release --no-restore --verbosity normal
     - name: Upload Artifact
