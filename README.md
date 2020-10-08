@@ -1,6 +1,6 @@
-![.NET Core](https://github.com/falox/csharp-operator-sdk/workflows/.NET%20Core/badge.svg?branch=master)
+[![.NET Core](https://github.com/falox/csharp-operator-sdk/workflows/.NET%20Core/badge.svg?branch=master)](https://github.com/falox/csharp-operator-sdk/actions?query=workflow%3A%22.NET+Core%22)
 [![Coverage Status](https://coveralls.io/repos/github/falox/csharp-operator-sdk/badge.svg)](https://coveralls.io/github/falox/csharp-operator-sdk)
-![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/k8s.Operators)
+[![Nuget (with prereleases)](https://img.shields.io/nuget/vpre/k8s.Operators)](https://www.nuget.org/packages/k8s.Operators)
 
 # C# Operator SDK
 
