@@ -57,8 +57,30 @@ namespace k8s.Operators.Tests
             var resource = CreateCustomResource();
             var genericController = new TestableController(_client);
             var namespaceController = new TestableController(_client);
-            _operator.AddController(genericController); // all namespaces
+            _operator.AddController(genericController, ""); // all namespaces
             _operator.AddController(namespaceController, "namespace1");
+            var task =_operator.StartAsync();
+
+            // Act
+            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            
+            // Assert
+            _operator.Stop(); await task;
+            VerifyAddOrModifyIsCalledWith(genericController, resource);
+            VerifyAddOrModifyIsNotCalled(namespaceController);
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added)]
+        [InlineData(WatchEventType.Modified)]
+        [InlineData(WatchEventType.Bookmark)]
+        public async Task AddController_WatchDefaultNamespaceIfNotSpecified(WatchEventType eventType)
+        {
+            // Arrange
+            var resource = CreateCustomResource(ns: "default");
+            var genericController = new TestableController(_client);
+            var namespaceController = new TestableController(_client);
+            _operator.AddController(genericController);
             var task =_operator.StartAsync();
 
             // Act
@@ -91,44 +113,22 @@ namespace k8s.Operators.Tests
         }
 
         [Theory]
-        [InlineData(WatchEventType.Added)]
-        [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
-        public async Task OnIncomingEvent_EventIsDispatchedToSpecificController(WatchEventType eventType)
-        {
-            // Arrange
-            var resource = CreateCustomResource(ns: "namespace1");
-            var genericController = new TestableController(_client);
-            var namespaceController1 = new TestableController(_client);
-            var namespaceController2 = new TestableController(_client);
-            _operator.AddController(genericController); // all namespaces
-            _operator.AddController(namespaceController1, "namespace1");
-            _operator.AddController(namespaceController2, "namespace2");
-            var task =_operator.StartAsync();
-
-            // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
-            
-            // Assert
-            _operator.Stop(); await task;
-            VerifyAddOrModifyIsCalledWith(namespaceController1, resource);
-            VerifyAddOrModifyIsNotCalled(namespaceController2);
-            VerifyAddOrModifyIsNotCalled(genericController);
-        }
-
-        [Theory]
-        [InlineData(WatchEventType.Added)]
-        [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
-        public async Task OnIncomingEvent_EventsAreDispatchedToAssociatedControllers(WatchEventType eventType)
+        [InlineData(WatchEventType.Added, "")]
+        [InlineData(WatchEventType.Modified, "")]
+        [InlineData(WatchEventType.Bookmark, "")]
+        [InlineData(WatchEventType.Added, null)]
+        [InlineData(WatchEventType.Modified, null)]
+        [InlineData(WatchEventType.Bookmark, null)]
+        public async Task OnIncomingEvent_EventsAreDispatchedToAssociatedControllers(WatchEventType eventType, string allNamespaceVariant)
         {
             // Arrange
             var resource1 = CreateCustomResource(ns: "namespace1");
             var resource2 = CreateCustomResource(ns: "namespace2");
             var genericController = new TestableController(_client);
             var namespaceController = new TestableController(_client);
-            _operator.AddController(genericController); // all namespaces
-            _operator.AddController(namespaceController, "namespace1", "namespace3");
+            _operator.AddController(genericController, allNamespaceVariant); // all namespaces
+            _operator.AddController(namespaceController, "namespace1");
+            _operator.AddController(namespaceController, "namespace3");
             var task =_operator.StartAsync();
 
             // Act

@@ -40,9 +40,9 @@ namespace k8s.Operators
         /// Add a controller to handle the events of the custom resource T
         /// </summary>
         /// <param name="controller">The controller for the custom resource</param>
-        /// <param name="namespaces">The watched namespaces. Set to null to watch all namespaces</param>
+        /// <param name="watchNamespace">The watched namespace. Set to null to watch all namespaces</param>
         /// <typeparam name="T">The type of the custom resource</typeparam>
-        public IOperator AddController<T>(IController<T> controller, params string[] namespaces) where T : CustomResource
+        public IOperator AddController<T>(IController<T> controller, string watchNamespace = "default") where T : CustomResource
         {
             if (IsDisposed)
             {
@@ -59,19 +59,15 @@ namespace k8s.Operators
                 throw new InvalidOperationException("A controller cannot be added once the operator has started");
             }
 
-            _logger.LogDebug($"Adding controller {controller} on namespace(s) {ArrayToString(namespaces)}");
-
-            if (namespaces.Length == 0)
+            if (watchNamespace == null)
             {
-                // Watch all namespaces
-                namespaces = new[] { ALL_NAMESPACES };
+                watchNamespace = ALL_NAMESPACES;
             }
 
-            // Associate the controller to each namespace
-            foreach (var @namespace in namespaces)
-            {
-                _watchedResources[(@namespace, typeof(T))] = controller;
-            }
+            _logger.LogDebug($"Added controller {controller} on namespace {(string.IsNullOrEmpty(watchNamespace) ? "\"\"" : watchNamespace)}");
+
+            // Associate the controller to the namespace
+            _watchedResources[(watchNamespace, typeof(T))] = controller;
 
             return this;
         }

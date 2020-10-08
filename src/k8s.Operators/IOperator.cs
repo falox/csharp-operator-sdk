@@ -12,9 +12,9 @@ namespace k8s.Operators
         /// Add a controller to handle the events of the custom resource T
         /// </summary>
         /// <param name="controller">The controller for the custom resource</param>
-        /// <param name="namespaces">The watched namespaces. Set to null to watch all namespaces</param>
+        /// <param name="watchNamespace">The watched namespace. Set to null to watch all namespaces</param>
         /// <typeparam name="T">The type of the custom resource</typeparam>
-        IOperator AddController<T>(IController<T> controller, params string[] namespaces) where T : CustomResource;
+        IOperator AddController<T>(IController<T> controller, string watchNamespace = "default") where T : CustomResource;
 
         /// <summary>
         /// Starts watching and handling events
