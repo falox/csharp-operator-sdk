@@ -28,6 +28,7 @@ namespace k8s.Operators.Tests
             _operator.StartAsync();
 
             Assert.False(_operator.IsRunning);
+            Assert.False(_operator.IsDisposing);
             Assert.True(_operator.IsDisposed);
         }
 
@@ -36,6 +37,8 @@ namespace k8s.Operators.Tests
         {
             _operator.AddController<TestableCustomResource>(new TestableController()).Dispose();
 
+            Assert.True(_operator.IsDisposed);
+            Assert.False(_operator.IsDisposing);
             Assert.ThrowsAsync<ObjectDisposedException>(() => _operator.StartAsync());
         }
 
@@ -44,6 +47,8 @@ namespace k8s.Operators.Tests
         {
             _operator.AddController<TestableCustomResource>(new TestableController()).Stop();
 
+            Assert.True(_operator.IsDisposed);
+            Assert.False(_operator.IsDisposing);
             Assert.ThrowsAsync<ObjectDisposedException>(() => _operator.StartAsync());
         }
 
