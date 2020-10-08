@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using k8s.Models;
 using Microsoft.Rest;
@@ -10,8 +11,9 @@ namespace k8s.Operators.Tests
 {
     public class BaseTests
     {
-        protected Mock<IKubernetes> _clientMock;
+        protected CancellationToken DUMMY_TOKEN = default(CancellationToken);
 
+        protected Mock<IKubernetes> _clientMock;
         protected IKubernetes _client => _clientMock.Object;
 
         public BaseTests()

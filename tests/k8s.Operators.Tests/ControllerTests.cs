@@ -12,8 +12,6 @@ namespace k8s.Operators.Tests
 {
     public class ControllerTests : BaseTests
     {
-        private CancellationToken DUMMY_TOKEN = default(CancellationToken);
-
         private TestableController _controller;
 
         public ControllerTests()
