@@ -15,7 +15,6 @@ See the implementation of `MyResourceController.cs` for more details.
 - [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 - [Kubernetes](https://kubernetes.io/docs/setup/)
 
-
 ## Running locally
 
 1. Add the custom resource definition to your Kubernetes cluster:
@@ -116,9 +115,15 @@ See the implementation of `MyResourceController.cs` for more details.
 3. Deploy the operator 
 
     ```bash
-    $ cd samples/basic/
-    $ kubectl apply -f ./deploy/service_account.yaml
-    $ kubectl apply -f ./deploy/role.yaml
-    $ kubectl apply -f ./deploy/role_binding.yaml
-    $ kubectl apply -f ./deploy/operator.yaml
+    $ cd samples/basic/deploy
+    kubectl apply -f ./service_account.yaml
+    kubectl apply -f ./role.yaml
+    kubectl apply -f ./role_binding.yaml
+    kubectl apply -f ./operator.yaml
     ```
+
+
+kubectl delete serviceaccounts basic-operator
+kubectl delete roles basic-operator
+kubectl delete rolebindings basic-operator
+kubectl delete deployments basic-operator

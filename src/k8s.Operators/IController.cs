@@ -8,6 +8,11 @@ namespace k8s.Operators
     /// </summary>
     public interface IController
     {
+        /// <summary>
+        /// Processes a custom resource event
+        /// </summary>
+        /// <param name="resourceEvent">The event to handle</param>
+        /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
         Task ProcessEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken);
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using k8s;
@@ -33,8 +34,10 @@ namespace k8s.Operators
         }
 
         /// <summary>
-        /// Process a custom resource event
+        /// Processes a custom resource event
         /// </summary>
+        /// <param name="resourceEvent">The event to handle</param>
+        /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
         public async Task ProcessEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
         {
             _logger.LogDebug($"Begin ProcessEvent, {resourceEvent}");
@@ -172,18 +175,31 @@ namespace k8s.Operators
             _logger.LogDebug($"End OnDeleted, {resource}");
         }
 
+        /// <summary>
+        /// Implements the logic to add or modify a resource
+        /// </summary>
+        /// <param name="resource">Resource being added or modified</param>
+        /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
+        [ExcludeFromCodeCoverage]
         protected virtual Task AddOrModifyAsync(T resource, CancellationToken cancellationToken)
         {
             return Task.FromResult(0);
         }
 
+        /// <summary>
+        /// Implements the logic to delete a resource
+        /// </summary>
+        /// <param name="resource">Resource being deleted</param>
+        /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
+        /// <returns></returns>
+        [ExcludeFromCodeCoverage]
         protected virtual Task DeleteAsync(T resource, CancellationToken cancellationToken)
         {
             return Task.FromResult(0);
         }
 
         /// <summary>
-        /// Update the status subresource
+        /// Updates the status subresource
         /// </summary>
         /// <see cref="https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#status-subresource"/>
         protected Task<T> UpdateStatusAsync<R>(R resource, CancellationToken cancellationToken) where R : T, IStatus
@@ -195,7 +211,7 @@ namespace k8s.Operators
         }
 
         /// <summary>
-        /// Update the resource (except the status)
+        /// Updates the resource (except the status)
         /// </summary>
         protected Task<T> UpdateResourceAsync(T resource, CancellationToken cancellationToken)
         {

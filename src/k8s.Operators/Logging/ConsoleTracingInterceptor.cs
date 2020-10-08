@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using Microsoft.Rest;
 
@@ -10,6 +11,7 @@ namespace k8s.Operators.Logging
     /// A console tracer for the ServiceClientTracing service used by the Kubernetes C# client
     /// </summary>
     /// <see cref="http://azure.github.io/autorest/client/tracing.html#custom-tracing"/>
+    [ExcludeFromCodeCoverage]
     public class ConsoleTracingInterceptor : IServiceClientTracingInterceptor
     {
         public void Information(string message)
