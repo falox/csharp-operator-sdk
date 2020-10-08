@@ -254,11 +254,6 @@ namespace k8s.Operators
             return task;
         }
 
-        private string ArrayToString(object[] items)
-        {
-            return items == null ? "NULL" : items.Length == 0 ? "ALL" : string.Join(",", items);
-        }
-
         protected override void DisposeInternal()
         {
             if (_cts?.IsCancellationRequested == false)
