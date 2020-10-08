@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using Microsoft.Rest; 
 using k8s.Operators.Logging;
+using Newtonsoft.Json;
 
 namespace k8s.Operators.Samples.Basic
 {
@@ -18,17 +19,21 @@ namespace k8s.Operators.Samples.Basic
             using var loggerFactory = SetupLogging(args);
             var logger = loggerFactory.CreateLogger<Program>();
 
-            // Setup termination handlers
-            SetupSignalHandlers();
-
             try
             {
+                logger.LogDebug($"Environment variables: {JsonConvert.SerializeObject(Environment.GetEnvironmentVariables())}");
+
+                // Setup termination handlers
+                SetupSignalHandlers();
+
                 // Setup the Kubernetes client
-                using var client = SetupClient();
+                using var client = SetupClient(args);
+
+                var watchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE") ?? "";
 
                 // Setup the operator
                 @operator = new Operator(client, loggerFactory)
-                    .AddController(new MyResourceController(client, loggerFactory));
+                    .AddController(new MyResourceController(client, loggerFactory), watchNamespace);
 
                 // Start the operator
                 await @operator.StartAsync();
@@ -41,23 +46,25 @@ namespace k8s.Operators.Samples.Basic
 
             return 0;
 
-            IKubernetes SetupClient()
+            IKubernetes SetupClient(string[] args)
             {
                 // Load the Kubernetes configuration
-                KubernetesClientConfiguration config = KubernetesClientConfiguration.IsInCluster() 
-                    ? KubernetesClientConfiguration.InClusterConfig()
-                    : KubernetesClientConfiguration.BuildConfigFromConfigFile();
-
+                KubernetesClientConfiguration config = null;
+                
+                if (KubernetesClientConfiguration.IsInCluster())
+                {
+                    logger.LogDebug("Loading cluster configuration");
+                    config = KubernetesClientConfiguration.InClusterConfig();
+                }
+                else
+                {
+                    logger.LogDebug("Loading local configuration");
+                    config = KubernetesClientConfiguration.BuildConfigFromConfigFile();
+                }
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    var configString = config
-                        .GetType()
-                        .GetProperties()
-                        .ToDictionary(x => x.Name, x => x.GetValue(config)?.ToString() ?? "NULL")
-                        .AsFormattedString();
-                    
-                    logger.LogDebug($"Client configuration: {configString}");
+                    logger.LogDebug($"Client configuration: {JsonConvert.SerializeObject(config)}");
                 }
                 
                 return new Kubernetes(config);
@@ -65,9 +72,7 @@ namespace k8s.Operators.Samples.Basic
 
             ILoggerFactory SetupLogging(string[] args)
             {
-                LogLevel logLevel = LogLevel.Information;
-
-                if (args.Contains("--debug"))
+                if (!System.Enum.TryParse<LogLevel>(Environment.GetEnvironmentVariable("LOG_LEVEL"), true, out LogLevel logLevel))
                 {
                     logLevel = LogLevel.Debug;
                 }
