@@ -29,22 +29,19 @@ namespace k8s.Operators.Samples.Basic
                 // Setup the Kubernetes client
                 using var client = SetupClient(args);
 
-                var watchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE") ?? "";
-
                 // Setup the operator
-                @operator = new Operator(client, loggerFactory)
-                    .AddController(new MyResourceController(client, loggerFactory), watchNamespace);
+                var configuration = GetOperatorConfiguration();
+                @operator = new Operator(configuration, client, loggerFactory)
+                    .AddController(new MyResourceController(configuration, client, loggerFactory), configuration.WatchNamespace);
 
                 // Start the operator
-                await @operator.StartAsync();
+                return await @operator.StartAsync();
             }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Operator error");
                 return 1;
             }
-
-            return 0;
 
             IKubernetes SetupClient(string[] args)
             {
@@ -110,6 +107,30 @@ namespace k8s.Operators.Samples.Basic
                     }
                 };
             }
+        }
+
+        private static OperatorConfiguration GetOperatorConfiguration()
+        {
+            var configuration = new OperatorConfiguration();
+
+            var retryPolicy = new RetryPolicy();
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_MAX_ATTEMPTS"), out int maxAttempts))
+            {
+                retryPolicy.MaxAttempts = maxAttempts;
+            }
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_INITIAL_DELAY"), out int initialDelay))
+            {
+                retryPolicy.InitialDelay = initialDelay;
+            }
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_DELAY_MULTIPLIER"), out int delayMultiplier))
+            {
+                retryPolicy.DelayMultiplier = delayMultiplier;
+            }
+            configuration.RetryPolicy = retryPolicy;
+            
+            configuration.WatchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE");
+
+            return configuration;
         }
     }
 }

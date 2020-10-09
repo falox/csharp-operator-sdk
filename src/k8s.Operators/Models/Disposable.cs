@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace k8s.Operators
 {
@@ -7,7 +8,12 @@ namespace k8s.Operators
     /// </summary>
     public abstract class Disposable : IDisposable
     {
-        public bool IsDisposed { get; private set; }
+        private volatile int _barrier;
+        private volatile bool _disposing;
+        private volatile bool _disposed;
+
+        public bool IsDisposed => _disposed;
+        public bool IsDisposing => _disposing;
 
         public void Dispose()
         {
@@ -17,14 +23,19 @@ namespace k8s.Operators
 
         protected void Dispose(bool disposing)
         {
-            if (!IsDisposed)
+            if (Interlocked.CompareExchange(ref _barrier, 1, 0) == 0)
             {
+                // This block can be executed only once
+
+                _disposing = true;
+
                 if (disposing)
                 {
                     DisposeInternal();
                 }
 
-                IsDisposed = true;
+                _disposing = false;
+                _disposed = true;
             }
         }
 

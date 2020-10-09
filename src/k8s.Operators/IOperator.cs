@@ -19,7 +19,7 @@ namespace k8s.Operators
         /// <summary>
         /// Starts watching and handling events
         /// </summary>
-        Task StartAsync();
+        Task<int> StartAsync();
 
         /// <summary>
         /// Stops the operator and release the resources. Once stopped, an operator cannot be restarted. Stop() is an alias for Dispose()
@@ -32,7 +32,7 @@ namespace k8s.Operators
         bool IsRunning { get; }
 
         /// <summary>
-        /// Returns true if Stop or Dispose have been called
+        /// Returns true if Stop/Dispose has been called and not completed
         /// </summary>
         /// <returns></returns>
         bool IsDisposing { get; }

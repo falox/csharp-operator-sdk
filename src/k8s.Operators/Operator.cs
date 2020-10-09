@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Rest;
 using Microsoft.Extensions.Logging;
 using k8s.Operators.Logging;
+using System.Diagnostics.CodeAnalysis;
 
 namespace k8s.Operators
 {
@@ -19,15 +20,20 @@ namespace k8s.Operators
         private const string ALL_NAMESPACES = "";
 
         private readonly ILogger _logger;
+        private readonly OperatorConfiguration _configuration;
         private readonly IKubernetes _client;
         private readonly Dictionary<(string Namespace, Type ResourceType), IController> _watchedResources;
-        private CancellationTokenSource _cts;
+        private readonly CancellationTokenSource _cts;
+        private bool _isStarted;
+        private bool _unexpectedWatcherTermination;
 
-        public Operator(IKubernetes client, ILoggerFactory loggerFactory = null)
+        public Operator(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null)
         {
+            this._configuration = configuration;
             this._client = client;
             this._logger = loggerFactory?.CreateLogger<Operator>() ?? SilentLogger.Instance;
             this._watchedResources = new Dictionary<(string Namespace, Type ResourceType), IController>();
+            this._cts = new CancellationTokenSource();
             
             TaskScheduler.UnobservedTaskException += (o, ev) =>
             {
@@ -75,7 +81,7 @@ namespace k8s.Operators
         /// <summary>
         /// Starts watching and handling events
         /// </summary>
-        public Task StartAsync()
+        public async Task<int> StartAsync()
         {
             if (IsDisposed)
             {
@@ -88,11 +94,12 @@ namespace k8s.Operators
             {
                 _logger.LogDebug($"No controller added, stopping operator");
                 Stop();
-                return Task.FromResult(0);
+                return 0;
             }
 
+            _isStarted = true;
+
             var watchers = new List<Task>();
-            _cts = new CancellationTokenSource();
             
             foreach (var entry in _watchedResources)
             {
@@ -120,7 +127,9 @@ namespace k8s.Operators
                 watchers.Add(watcher);
             }
 
-            return Task.WhenAll(watchers.ToArray());
+            await Task.WhenAll(watchers.ToArray());
+
+            return _unexpectedWatcherTermination ? 1 : 0;
         }
 
         /// <summary>
@@ -129,26 +138,24 @@ namespace k8s.Operators
         public void Stop()
         {
             _logger.LogInformation($"Stop operator");
-
             Dispose();
         }
 
         /// <summary>
         /// Returns true if StartAsync has been called and the operator is running
         /// </summary>
-        public bool IsRunning => _cts?.IsCancellationRequested == false && !IsDisposed;
-
-        /// <summary>
-        /// Returns true if Stop or Dispose have been called
-        /// </summary>
-        /// <returns></returns>
-        public bool IsDisposing => _cts?.IsCancellationRequested == true  && !IsDisposed;
+        public bool IsRunning => !IsDisposing && !IsDisposed && _isStarted;
 
         /// <summary>
         /// Watches for events for a given resource definition and namespace. If namespace is empty string, it watches all namespaces
         /// </summary>
         private async Task WatchCustomResourceAsync<T>(CustomResourceDefinitionAttribute crd, string @namespace) where T : CustomResource
         {
+            if (IsDisposing || IsDisposed)
+            {
+                return;
+            }
+
             var response = await _client.ListNamespacedCustomObjectWithHttpMessagesAsync(
                 crd.Group,
                 crd.Version,
@@ -161,7 +168,7 @@ namespace k8s.Operators
 
             _logger.LogDebug($"Begin watch {@namespace}/{crd.Plural}");
 
-            using (var watcher = response.Watch<T, object>(OnIncomingEvent, OnWatchError))
+            using (var watcher = response.Watch<T, object>(OnIncomingEvent, OnWatcherError, OnWatcherClose))
             {
                 await WaitOneAsync(_cts.Token.WaitHandle);
 
@@ -176,6 +183,11 @@ namespace k8s.Operators
         /// <param name="resource"></param>
         protected void OnIncomingEvent(WatchEventType eventType, CustomResource resource)
         {
+            if (IsDisposed)
+            {
+                throw new ObjectDisposedException("Operator");
+            }
+
             var resourceEvent = new CustomResourceEvent(eventType, resource);
 
             _logger.LogDebug($"Received event {resourceEvent}");
@@ -205,12 +217,26 @@ namespace k8s.Operators
                     }
                 });
         }
-
-        protected void OnWatchError(Exception exception)
+        
+        [ExcludeFromCodeCoverage]
+        protected void OnWatcherError(Exception exception)
         {
-            if (_cts?.IsCancellationRequested == false)
+            if (IsRunning)
             {
-                _logger.LogError(exception, "Watch Error");
+                _logger.LogError(exception, "Watcher error");
+            }
+        }
+
+        [ExcludeFromCodeCoverage]
+        protected virtual void OnWatcherClose()
+        {
+            _logger.LogError("Watcher closed");
+
+            if (IsRunning)
+            {
+                // At least one watcher stopped unexpectedly. Stop the operator, let Kubernetes restart it
+                _unexpectedWatcherTermination = true;
+                Stop();
             }
         }
 
@@ -256,17 +282,10 @@ namespace k8s.Operators
 
         protected override void DisposeInternal()
         {
-            if (_cts?.IsCancellationRequested == false)
-            {
-                _logger.LogInformation($"Disposing operator");
+            _logger.LogInformation($"Disposing operator");
 
-                // Signal the watchers to stop
-                _cts.Cancel();
-
-                // Release resources
-                _cts.Dispose();
-                _cts = null;
-            }
+            // Signal the watchers to stop
+            _cts.Cancel();
         }
     }
 }

@@ -24,14 +24,20 @@ namespace k8s.Operators
         private readonly ResourceChangeTracker _changeTracker;
         private readonly CustomResourceDefinitionAttribute _crd;
 
-        public Controller(IKubernetes client, ILoggerFactory loggerFactory = null)
+        public Controller(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null)
         {
             this._client = client;
             this._logger = loggerFactory?.CreateLogger<Controller<T>>() ?? SilentLogger.Instance;
             this._eventManager = new EventManager(loggerFactory);
             this._changeTracker = new ResourceChangeTracker(loggerFactory);
             this._crd = (CustomResourceDefinitionAttribute) Attribute.GetCustomAttribute(typeof(T), typeof(CustomResourceDefinitionAttribute));
+            this.RetryPolicy = configuration.RetryPolicy;
         }
+
+        /// <summary>
+        /// Retry policy for the controller
+        /// </summary>
+        public RetryPolicy RetryPolicy { get; protected set; }
 
         /// <summary>
         /// Processes a custom resource event
@@ -85,6 +91,66 @@ namespace k8s.Operators
 
             _eventManager.BeginHandleEvent(resourceEvent);
 
+            var attempt = 1;
+            var delay = RetryPolicy.InitialDelay;
+            while (true)
+            {
+                // Try to handle the event
+                var handled = await TryHandleEventAsync(resourceEvent, cancellationToken);
+                if (handled)
+                {
+                    break;
+                }
+
+                // Something went wrong
+                if (!CanTryAgain(resourceEvent, attempt, cancellationToken))
+                {                    
+                    break;
+                }
+
+                _logger.LogDebug($"Retrying to handle {resourceEvent} in {delay}ms (attempt #{attempt})");
+
+                // Wait
+                await Task.Delay(delay);
+
+                // Increase the delay for the next attempt
+                attempt++;
+                delay = (int)(delay * RetryPolicy.DelayMultiplier);                    
+            }
+
+            _logger.LogDebug($"End HandleEvent, {resourceEvent}");
+
+            _eventManager.EndHandleEvent(resourceEvent);
+        }
+
+        private bool CanTryAgain(CustomResourceEvent resourceEvent, int attemptNumber, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogDebug($"Cannot retry {resourceEvent}, processing has been canceled");
+                return false;
+            }
+
+            var upcoming = _eventManager.Peek(resourceEvent.ResourceUid);
+            if (upcoming != null)
+            {
+                _logger.LogDebug($"Cannot retry {resourceEvent}, received {upcoming} in the meantime");
+                return false;
+            }
+
+            if (attemptNumber > RetryPolicy.MaxAttempts)
+            {
+                _logger.LogDebug($"Cannot retry {resourceEvent}, max number of attempts reached");
+                return false;
+            }
+
+            return true;
+        }
+
+        private async Task<bool> TryHandleEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken)
+        {
+            bool handled = true;
+
             try
             {
                 var resource = (T)resourceEvent.Resource;
@@ -112,12 +178,11 @@ namespace k8s.Operators
                 else
                 {
                     _logger.LogError(exception, $"Error handling {resourceEvent}");
+                    handled = false;
                 }
             }
 
-            _logger.LogDebug($"End HandleEvent, {resourceEvent}");
-
-            _eventManager.EndHandleEvent(resourceEvent);
+            return handled;
         }
 
         private async Task HandleAddedOrModifiedEventAsync(T resource, CancellationToken cancellationToken)

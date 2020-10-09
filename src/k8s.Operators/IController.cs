@@ -14,6 +14,11 @@ namespace k8s.Operators
         /// <param name="resourceEvent">The event to handle</param>
         /// <param name="cancellationToken">Signals if the current execution has been canceled</param>
         Task ProcessEventAsync(CustomResourceEvent resourceEvent, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Retry policy for the controller
+        /// </summary>
+        RetryPolicy RetryPolicy { get; }
     }
 
     /// <summary>

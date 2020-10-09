@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using k8s.Operators.Logging;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,21 @@ namespace k8s.Operators
                 _logger.LogTrace($"Enqueue {resourceEvent}");
                 // Insert or update the next event for the resource
                 _queuesByResource[resourceEvent.ResourceUid] = resourceEvent;
+            }
+        }
+
+        /// <summary>
+        /// Returns the next event to process, without dequeuing it
+        /// </summary>
+        public CustomResourceEvent Peek(string resourceUid)
+        {
+            lock (this)
+            {
+                if (_queuesByResource.TryGetValue(resourceUid, out CustomResourceEvent result))
+                {
+                    _logger.LogTrace($"Peek {result}");
+                }
+                return result;
             }
         }
 
@@ -92,6 +108,6 @@ namespace k8s.Operators
         private bool IsHandling(string resourceUid, out CustomResourceEvent handlingEvent)
         {
             return _handling.TryGetValue(resourceUid, out handlingEvent);
-        }
+        }        
     }
 }

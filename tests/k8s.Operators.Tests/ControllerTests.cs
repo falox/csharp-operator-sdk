@@ -17,6 +17,7 @@ namespace k8s.Operators.Tests
         public ControllerTests()
         {
             _controller = new TestableController(_client);
+            _controller.RetryPolicy.InitialDelay = 1;
         }
 
         [Theory]
@@ -187,22 +188,22 @@ namespace k8s.Operators.Tests
             // Send 2 updates in a row for the same resource
 
             // Update #1
-            var token1 = _controller.BlockNextCall();
+            var token1 = _controller.BlockNextEvent();
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType1, resource_v1), DUMMY_TOKEN);
 
             // Update #2
-            var token2 = _controller.BlockNextCall();
+            var token2 = _controller.BlockNextEvent();
             var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType2, resource_v2), DUMMY_TOKEN);
 
             // Update #1 starts, update #2 is waiting
-            VerifyProcessedEvents(_controller, (resource_v1, delete1));
+            VerifyCalledEvents(_controller, (resource_v1, delete1));
 
             // Update #1 ends, update #2 starts
-            _controller.Unblock(token1);
-            VerifyProcessedEvents(_controller, (resource_v1, delete1), (resource_v2, delete2));
+            _controller.UnblockEvent(token1);
+            VerifyCalledEvents(_controller, (resource_v1, delete1), (resource_v2, delete2));
 
             // Update #2 ends
-            _controller.Unblock(token2);
+            _controller.UnblockEvent(token2);
             Task.WaitAll(task2, task1);
         }
 
@@ -229,20 +230,152 @@ namespace k8s.Operators.Tests
             // Send 2 updates in a row for the different resources
             
             // Update #1
-            var token1 = _controller.BlockNextCall();
+            var token1 = _controller.BlockNextEvent();
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType1, resource1), DUMMY_TOKEN);
 
             // Update #2
-            var token2 = _controller.BlockNextCall();
+            var token2 = _controller.BlockNextEvent();
             var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType2, resource2), DUMMY_TOKEN);
 
             // Updates are processed concurrently
-            VerifyProcessedEvents(_controller, (resource1, delete1), (resource2, delete2));
+            VerifyCalledEvents(_controller, (resource1, delete1), (resource2, delete2));
 
             // Updates end
-            _controller.Unblock(token1);
-            _controller.Unblock(token2);
+            _controller.UnblockEvent(token1);
+            _controller.UnblockEvent(token2);
             Task.WaitAll(task2, task1);
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, true)]
+        [InlineData(WatchEventType.Modified, true)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Added, false)]
+        [InlineData(WatchEventType.Modified, false)]
+        [InlineData(WatchEventType.Bookmark, false)]
+        public async Task ProcessEventAsync_RetryOnFailure(WatchEventType eventType, bool delete)
+        {
+            // Arrange
+            var resource = CreateCustomResource(deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            var resourceEvent = new CustomResourceEvent(eventType, resource);
+            _controller.ThrowExceptionOnNextEvents(_controller.RetryPolicy.MaxAttempts); // ProcessEventAsync will fail n times, where n = MaxAttempts
+
+            // Act
+            await _controller.ProcessEventAsync(resourceEvent, DUMMY_TOKEN);
+
+            // Assert
+            VerifyCompletedEvents(_controller, (resource, deleteEvent: delete));
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, true)]
+        [InlineData(WatchEventType.Modified, true)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Added, false)]
+        [InlineData(WatchEventType.Modified, false)]
+        [InlineData(WatchEventType.Bookmark, false)]
+        public async Task ProcessEventAsync_NoRetryAfterMaxAttempts(WatchEventType eventType, bool delete)
+        {
+            // Arrange
+            var resource = CreateCustomResource(deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            var resourceEvent = new CustomResourceEvent(eventType, resource);
+            _controller.ThrowExceptionOnNextEvents(_controller.RetryPolicy.MaxAttempts + 1); // ProcessEventAsync will fail n + 1 times, where n = MaxAttempts
+
+            // Act
+            await _controller.ProcessEventAsync(resourceEvent, DUMMY_TOKEN);
+
+            // Assert
+            VerifyCompletedEvents(_controller);
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, true)]
+        [InlineData(WatchEventType.Modified, true)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Added, false)]
+        [InlineData(WatchEventType.Modified, false)]
+        [InlineData(WatchEventType.Bookmark, false)]
+        public void ProcessEventAsync_NoRetryIfNewEventForSameResourceIsQueued(WatchEventType eventType, bool delete)
+        {
+            // Arrange
+            var resource_v1 = CreateCustomResource(generation: 1, deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            var resource_v2 = CreateCustomResource(generation: 2, deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            _controller.ThrowExceptionOnNextEvents(1);
+            var block = _controller.BlockNextEvent();
+
+            // Event #1, will block
+            var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
+
+            // Event #2, queued
+            var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN);
+
+            // Unblock #1, will throw an exception. But since #2 has arrived in the meantime, #1 will be discarded
+            _controller.UnblockEvent(block);
+
+            Task.WaitAll(task2, task1);
+
+            // Assert
+            VerifyCompletedEvents(_controller, (resource_v2, deleteEvent: delete));
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, true)]
+        [InlineData(WatchEventType.Modified, true)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Added, false)]
+        [InlineData(WatchEventType.Modified, false)]
+        [InlineData(WatchEventType.Bookmark, false)]
+        public void ProcessEventAsync_RetryIfNewEventForAnotherResourceIsQueued(WatchEventType eventType, bool delete)
+        {
+            // Arrange
+            var resource1 = CreateCustomResource(uid: "1", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            var resource2 = CreateCustomResource(uid: "2", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            _controller.ThrowExceptionOnNextEvents(1);
+            var block = _controller.BlockNextEvent();
+
+            // Event #1, will block
+            var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource1), DUMMY_TOKEN);
+
+            // Event #2, will be processed since it's a different resource
+            var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource2), DUMMY_TOKEN);
+
+            // Unblock #1
+            _controller.UnblockEvent(block);
+
+            Task.WaitAll(task2, task1);
+
+            // Assert
+            VerifyCompletedEvents(_controller, (resource2, deleteEvent: delete), (resource1, deleteEvent: delete));
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, true)]
+        [InlineData(WatchEventType.Modified, true)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Added, false)]
+        [InlineData(WatchEventType.Modified, false)]
+        [InlineData(WatchEventType.Bookmark, false)]
+        public void ProcessEventAsync_NoRetryIfCancelIsRequested(WatchEventType eventType, bool delete)
+        {
+            // Arrange
+            var resource = CreateCustomResource(deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
+            var cts = new CancellationTokenSource();
+            _controller.ThrowExceptionOnNextEvents(1);
+            var block = _controller.BlockNextEvent();
+
+            // Will block
+            var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource), cts.Token);
+
+            // 
+            cts.Cancel();
+
+            // Unblock #1, will throw an exception. But since #2 has arrived in the meantime, #1 will be discarded
+            _controller.UnblockEvent(block);
+
+            Task.WaitAll(task1);
+
+            // Assert
+            VerifyCompletedEvents(_controller);
         }
 
         private void VerifyNoOtherApiIsCalled() => _clientMock.VerifyNoOtherCalls();
