@@ -13,7 +13,7 @@ namespace k8s.Operators.Tests
 
         public OperatorTests()
         {
-            _operator = new TestableOperator(_client);
+            _operator = new TestableOperator(OperatorConfiguration.Default, _client, _loggerFactory);
         }
 
         [Fact]
@@ -23,9 +23,33 @@ namespace k8s.Operators.Tests
         }
 
         [Fact]
-        public void StartAsync_CallsDisposeAndStopIfNoControllersArePresent()
+        public void Dispose_ExecutesOnlyOnce()
         {
-            _operator.StartAsync();
+            _operator.Dispose();
+            _operator.Dispose();
+
+            Assert.False(_operator.IsRunning);
+            Assert.False(_operator.IsDisposing);
+            Assert.True(_operator.IsDisposed);
+            Assert.Equal(1, _operator.DisposeInvocationCount);
+        }
+
+        [Fact]
+        public void Stop_ExecutesOnlyOnce()
+        {
+            _operator.Stop();
+            _operator.Stop();
+
+            Assert.False(_operator.IsRunning);
+            Assert.False(_operator.IsDisposing);
+            Assert.True(_operator.IsDisposed);
+            Assert.Equal(1, _operator.DisposeInvocationCount);
+        }
+
+        [Fact]
+        public async Task StartAsync_CallsDisposeAndStopIfNoControllersArePresent()
+        {
+            await _operator.StartAsync();
 
             Assert.False(_operator.IsRunning);
             Assert.False(_operator.IsDisposing);
@@ -35,7 +59,8 @@ namespace k8s.Operators.Tests
         [Fact]
         public void StartAsync_ThrowsExceptionIfDisposed()
         {
-            _operator.AddController<TestableCustomResource>(new TestableController()).Dispose();
+            _operator.AddController<TestableCustomResource>(new TestableController());
+            _operator.Dispose();
 
             Assert.True(_operator.IsDisposed);
             Assert.False(_operator.IsDisposing);
@@ -45,31 +70,48 @@ namespace k8s.Operators.Tests
         [Fact]
         public void StartAsync_ThrowsExceptionIfStopped()
         {
-            _operator.AddController<TestableCustomResource>(new TestableController()).Stop();
+            _operator.AddController<TestableCustomResource>(new TestableController());
+            _operator.Stop();
 
             Assert.True(_operator.IsDisposed);
             Assert.False(_operator.IsDisposing);
             Assert.ThrowsAsync<ObjectDisposedException>(() => _operator.StartAsync());
         }
 
+        [Fact]
+        public async Task AddControllerOfType_CreatesAndAddController()
+        {
+            // Arrange
+            var resource = CreateCustomResource();
+
+            // Act
+            var controller = (TestableController) _operator.AddControllerOfType<TestableController>();
+            
+            // Assert
+            var task =_operator.StartAsync();
+            _operator.Exposed_OnIncomingEvent(WatchEventType.Added, resource);
+            _operator.Stop(); await task;
+            VerifyAddOrModifyIsCalledWith(controller, resource);
+        }
+
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
         [InlineData(WatchEventType.Bookmark)]
-        public async Task OnIncomingEvent_EventIsDispatchedToGenericController(WatchEventType eventType)
+        public async Task AddController_EventIsDispatchedToGenericController(WatchEventType eventType)
         {
             // Arrange
             var resource = CreateCustomResource();
-            var genericController = new TestableController(_client);
-            var namespaceController = new TestableController(_client);
-            _operator.AddController(genericController, ""); // all namespaces
-            _operator.AddController(namespaceController, "namespace1");
-            var task =_operator.StartAsync();
+            var genericController = new TestableController(_client, _loggerFactory);
+            var namespaceController = new TestableController(_client, _loggerFactory);
 
             // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            _operator.AddController(genericController, ""); // all namespaces
+            _operator.AddController(namespaceController, "namespace1");
             
             // Assert
+            var task =_operator.StartAsync();
+            _operator.Exposed_OnIncomingEvent(eventType, resource);
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(genericController, resource);
             VerifyAddOrModifyIsNotCalled(namespaceController);
@@ -83,15 +125,15 @@ namespace k8s.Operators.Tests
         {
             // Arrange
             var resource = CreateCustomResource(ns: "default");
-            var genericController = new TestableController(_client);
-            var namespaceController = new TestableController(_client);
-            _operator.AddController(genericController);
-            var task =_operator.StartAsync();
+            var genericController = new TestableController(_client, _loggerFactory);
+            var namespaceController = new TestableController(_client, _loggerFactory);
 
             // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            _operator.AddController(genericController);
             
             // Assert
+            var task =_operator.StartAsync();
+            _operator.Exposed_OnIncomingEvent(eventType, resource);
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(genericController, resource);
             VerifyAddOrModifyIsNotCalled(namespaceController);

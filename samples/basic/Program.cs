@@ -13,7 +13,7 @@ namespace k8s.Operators.Samples.Basic
     {
         static async Task<int> Main(string[] args) 
         {
-            IOperator @operator = null;
+            IOperator basicOperator = null;
 
             // Setup logging
             using var loggerFactory = SetupLogging(args);
@@ -29,22 +29,19 @@ namespace k8s.Operators.Samples.Basic
                 // Setup the Kubernetes client
                 using var client = SetupClient(args);
 
-                var watchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE") ?? "";
-
                 // Setup the operator
-                @operator = new Operator(client, loggerFactory)
-                    .AddController(new MyResourceController(client, loggerFactory), watchNamespace);
+                var configuration = GetOperatorConfiguration();
+                basicOperator = new Operator(configuration, client, loggerFactory);
+                basicOperator.AddControllerOfType<MyResourceController>();
 
                 // Start the operator
-                await @operator.StartAsync();
+                return await basicOperator.StartAsync();
             }
             catch (Exception exception)
             {
                 logger.LogError(exception, "Operator error");
                 return 1;
             }
-
-            return 0;
 
             IKubernetes SetupClient(string[] args)
             {
@@ -95,13 +92,13 @@ namespace k8s.Operators.Samples.Basic
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => 
                 {
                     logger.LogDebug("Received SIGTERM");
-                    @operator?.Stop();
+                    basicOperator?.Stop();
                 };
 
                 // SIGINT: try to shut down gracefully on the first attempt
                 Console.CancelKeyPress += (s, e) => 
                 {
-                    bool isFirstSignal = !@operator.IsDisposing;
+                    bool isFirstSignal = !basicOperator.IsDisposing;
                     logger.LogDebug($"Received SIGINT, first signal: {isFirstSignal}");
                     if (isFirstSignal)
                     {
@@ -110,6 +107,30 @@ namespace k8s.Operators.Samples.Basic
                     }
                 };
             }
+        }
+
+        private static OperatorConfiguration GetOperatorConfiguration()
+        {
+            var configuration = new OperatorConfiguration();
+
+            var retryPolicy = new RetryPolicy();
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_MAX_ATTEMPTS"), out int maxAttempts))
+            {
+                retryPolicy.MaxAttempts = maxAttempts;
+            }
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_INITIAL_DELAY"), out int initialDelay))
+            {
+                retryPolicy.InitialDelay = initialDelay;
+            }
+            if (int.TryParse(Environment.GetEnvironmentVariable("RETRY_DELAY_MULTIPLIER"), out int delayMultiplier))
+            {
+                retryPolicy.DelayMultiplier = delayMultiplier;
+            }
+            configuration.RetryPolicy = retryPolicy;
+            
+            configuration.WatchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE");
+
+            return configuration;
         }
     }
 }

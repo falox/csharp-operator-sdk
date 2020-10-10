@@ -3,25 +3,28 @@ using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Threading;
+using System;
 
 namespace k8s.Operators.Tests
 {
-
     public class TestableController : Controller<TestableCustomResource>
     {
-        public TestableController() : base(null, null)
+        public TestableController() : base(OperatorConfiguration.Default, null, null)
         {
         }
 
-        public TestableController(IKubernetes client, ILoggerFactory loggerFactory = null) : base(client, loggerFactory)
+        public TestableController(IKubernetes client, ILoggerFactory loggerFactory = null) : base(OperatorConfiguration.Default, client, loggerFactory)
         {
         }
 
-        public List<(TestableCustomResource resource, bool deleted)> Invocations = new List<(TestableCustomResource resource, bool deleted)>();
+        public TestableController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
+        {
+        }
 
         public List<TestableCustomResource> Invocations_AddOrModify = new List<TestableCustomResource>();
-        
         public List<TestableCustomResource> Invocations_Delete = new List<TestableCustomResource>();
+        public List<(TestableCustomResource resource, bool deleteEvent)> Invocations = new List<(TestableCustomResource resource, bool deleteEvent)>();        
+        public List<(TestableCustomResource resource, bool deleteEvent)> CompletedEvents = new List<(TestableCustomResource resource, bool deleteEvent)>();
         
         private TaskCompletionSource<object> _tcs = null;
 
@@ -32,9 +35,17 @@ namespace k8s.Operators.Tests
 
             if (_tcs != null)
             {
-                // Wait for Unblock()
+                // Wait for UnblockEvent()
                 await _tcs?.Task;
             }
+
+            if (_exceptionsToThrow > 0)
+            {
+                _exceptionsToThrow--;
+                throw new Exception();
+            }
+
+            CompletedEvents.Add((resource, deleteEvent: false));
         }
 
         protected override async Task DeleteAsync(TestableCustomResource resource, CancellationToken cancellationToken)
@@ -44,9 +55,17 @@ namespace k8s.Operators.Tests
 
             if (_tcs != null)
             {
-                // Wait for Unblock()
+                // Wait for UnblockEvent()
                 await _tcs?.Task;
             }
+
+            if (_exceptionsToThrow > 0)
+            {
+                _exceptionsToThrow--;
+                throw new Exception();
+            }
+
+            CompletedEvents.Add((resource, deleteEvent: true));
         }
 
         /// <summary>
@@ -60,9 +79,20 @@ namespace k8s.Operators.Tests
         public Task<TestableCustomResource> Exposed_UpdateStatusAsync(TestableCustomResource resource, CancellationToken cancellationToken) => UpdateStatusAsync(resource, cancellationToken);
 
         /// <summary>
+        /// Throws an exception in the next calls to AddOrModifyAsync or DeleteAsync
+        /// </summary>
+        /// <param name="count">The number of the events to make fail</param>
+        public void ThrowExceptionOnNextEvents(int count)
+        {
+            _exceptionsToThrow = count;
+        }
+
+        private int _exceptionsToThrow = 0;
+
+        /// <summary>
         /// Block the next call to AddOrModifyAsync or DeleteAsync
         /// </summary>
-        public TaskCompletionSource<object> BlockNextCall()
+        public TaskCompletionSource<object> BlockNextEvent()
         {
             _tcs = new TaskCompletionSource<object>();
             return _tcs;
@@ -71,7 +101,7 @@ namespace k8s.Operators.Tests
         /// <summary>
         /// Unblock the next call to AddOrModifyAsync or DeleteAsync
         /// </summary>
-        public void Unblock(TaskCompletionSource<object> tcs)
+        public void UnblockEvent(TaskCompletionSource<object> tcs)
         {
             tcs.SetResult(true);
         }

@@ -24,3 +24,9 @@ spec:
                   fieldPath: metadata.namespace
             - name: LOG_LEVEL
               value: "information"
+            - name: RETRY_MAX_ATTEMPTS
+              value: 3
+            - name: RETRY_INITIAL_DELAY
+              value: 5000
+            - name: RETRY_DELAY_MULTIPLIER
+              value: 1.5

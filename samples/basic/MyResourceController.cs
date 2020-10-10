@@ -8,7 +8,7 @@ namespace k8s.Operators.Samples.Basic
 {
     public class MyResourceController : Controller<MyResource>
     {        
-        public MyResourceController(IKubernetes client, ILoggerFactory loggerFactory = null) : base(client, loggerFactory)
+        public MyResourceController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
         {
         }
 

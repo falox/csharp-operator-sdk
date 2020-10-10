@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using k8s.Models;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Microsoft.Rest;
 using Moq;
 using Xunit;
@@ -15,9 +17,15 @@ namespace k8s.Operators.Tests
 
         protected Mock<IKubernetes> _clientMock;
         protected IKubernetes _client => _clientMock.Object;
+        protected ILoggerFactory _loggerFactory;
 
         public BaseTests()
         {
+            // _loggerFactory = LoggerFactory.Create(builder => builder
+            //     .AddConsole(options => options.Format=ConsoleLoggerFormat.Systemd)
+            //     .SetMinimumLevel(LogLevel.Debug)
+            // );
+
             // Setup the client mock
             _clientMock = new Mock<IKubernetes>();
 
@@ -87,7 +95,8 @@ namespace k8s.Operators.Tests
             return resource;
         }
 
-        protected void VerifyProcessedEvents(TestableController controller, params (TestableCustomResource resource, bool deleted)[] inputs) => Assert.Equal(inputs, controller.Invocations);
+        protected void VerifyCompletedEvents(TestableController controller, params (TestableCustomResource resource, bool deleteEvent)[] inputs) => Assert.Equal(inputs, controller.CompletedEvents);
+        protected void VerifyCalledEvents(TestableController controller, params (TestableCustomResource resource, bool deleted)[] inputs) => Assert.Equal(inputs, controller.Invocations);
         protected void VerifyAddOrModifyIsCalledWith(TestableController controller,params TestableCustomResource[] inputs) => Assert.Equal(inputs, controller.Invocations_AddOrModify);
         protected void VerifyDeleteIsCalledWith(TestableController controller,params TestableCustomResource[] inputs) => Assert.Equal(inputs, controller.Invocations_Delete);
         protected void VerifyAddOrModifyIsNotCalled(TestableController controller) => Assert.Equal(new TestableCustomResource[] { }, controller.Invocations_AddOrModify);
