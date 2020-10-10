@@ -23,7 +23,7 @@ dotnet new console
 dotnet add package k8s.Operators --version 1.0.0-beta1
 ```
 
-Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a class deriving from `CustomResource` for the custom resource:
+Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a class deriving from `CustomResource` for the custom resource schema:
 
 ```csharp
 // Set the CRD attributes
