@@ -13,7 +13,7 @@ namespace k8s.Operators.Samples.Basic
     {
         static async Task<int> Main(string[] args) 
         {
-            IOperator @operator = null;
+            IOperator basicOperator = null;
 
             // Setup logging
             using var loggerFactory = SetupLogging(args);
@@ -31,11 +31,11 @@ namespace k8s.Operators.Samples.Basic
 
                 // Setup the operator
                 var configuration = GetOperatorConfiguration();
-                @operator = new Operator(configuration, client, loggerFactory)
-                    .AddController(new MyResourceController(configuration, client, loggerFactory), configuration.WatchNamespace);
+                basicOperator = new Operator(configuration, client, loggerFactory);
+                basicOperator.AddControllerOfType<MyResourceController>();
 
                 // Start the operator
-                return await @operator.StartAsync();
+                return await basicOperator.StartAsync();
             }
             catch (Exception exception)
             {
@@ -92,13 +92,13 @@ namespace k8s.Operators.Samples.Basic
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => 
                 {
                     logger.LogDebug("Received SIGTERM");
-                    @operator?.Stop();
+                    basicOperator?.Stop();
                 };
 
                 // SIGINT: try to shut down gracefully on the first attempt
                 Console.CancelKeyPress += (s, e) => 
                 {
-                    bool isFirstSignal = !@operator.IsDisposing;
+                    bool isFirstSignal = !basicOperator.IsDisposing;
                     logger.LogDebug($"Received SIGINT, first signal: {isFirstSignal}");
                     if (isFirstSignal)
                     {

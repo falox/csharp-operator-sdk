@@ -17,6 +17,10 @@ namespace k8s.Operators.Tests
         {
         }
 
+        public TestableController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
+        {
+        }
+
         public List<TestableCustomResource> Invocations_AddOrModify = new List<TestableCustomResource>();
         public List<TestableCustomResource> Invocations_Delete = new List<TestableCustomResource>();
         public List<(TestableCustomResource resource, bool deleteEvent)> Invocations = new List<(TestableCustomResource resource, bool deleteEvent)>();        

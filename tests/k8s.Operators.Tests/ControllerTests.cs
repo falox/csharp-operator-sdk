@@ -16,7 +16,7 @@ namespace k8s.Operators.Tests
 
         public ControllerTests()
         {
-            _controller = new TestableController(_client);
+            _controller = new TestableController(OperatorConfiguration.Default,_client);
             _controller.RetryPolicy.InitialDelay = 1;
         }
 

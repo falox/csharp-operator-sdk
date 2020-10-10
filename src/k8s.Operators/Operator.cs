@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,6 +22,7 @@ namespace k8s.Operators
         private readonly IKubernetes _client;
         private readonly Dictionary<(string Namespace, Type ResourceType), IController> _watchedResources;
         private readonly CancellationTokenSource _cts;
+        private readonly ILoggerFactory _loggerFactory;
         private bool _isStarted;
         private bool _unexpectedWatcherTermination;
 
@@ -31,6 +30,7 @@ namespace k8s.Operators
         {
             this._configuration = configuration;
             this._client = client;
+            this._loggerFactory = loggerFactory;
             this._logger = loggerFactory?.CreateLogger<Operator>() ?? SilentLogger.Instance;
             this._watchedResources = new Dictionary<(string Namespace, Type ResourceType), IController>();
             this._cts = new CancellationTokenSource();
@@ -40,15 +40,17 @@ namespace k8s.Operators
                 _logger.LogError(ev.Exception, "Unobserved exception");
                 ev.SetObserved();
             };
+
+            // TODO: log versions
         }
 
         /// <summary>
-        /// Add a controller to handle the events of the custom resource T
+        /// Adds a controller to handle the events of the custom resource R
         /// </summary>
         /// <param name="controller">The controller for the custom resource</param>
         /// <param name="watchNamespace">The watched namespace. Set to null to watch all namespaces</param>
-        /// <typeparam name="T">The type of the custom resource</typeparam>
-        public IOperator AddController<T>(IController<T> controller, string watchNamespace = "default") where T : CustomResource
+        /// <typeparam name="R">The type of the custom resource</typeparam>
+        public IOperator AddController<R>(IController<R> controller, string watchNamespace = "default") where R : CustomResource
         {
             if (IsDisposed)
             {
@@ -73,9 +75,35 @@ namespace k8s.Operators
             _logger.LogDebug($"Added controller {controller} on namespace {(string.IsNullOrEmpty(watchNamespace) ? "\"\"" : watchNamespace)}");
 
             // Associate the controller to the namespace
-            _watchedResources[(watchNamespace, typeof(T))] = controller;
+            _watchedResources[(watchNamespace, typeof(R))] = controller;
 
             return this;
+        }
+
+        /// <summary>
+        /// Adds a new instance of a controller of type C to handle the events of the custom resource
+        /// </summary>
+        /// <typeparam name="C">The type of the controller. C must implement IController<R> and expose a constructor that accepts (OperatorConfiguration, IKubernetes, ILoggerFactory)</typeparam>
+        /// <returns>The instance of the controller</return>
+        public IController AddControllerOfType<C>() where C : IController
+        {
+            // Use Reflection to instantiate the controller and pass it to AddController<R>()
+
+            // ASSUMPTION: C implements IController<R>, where R is a custom resource
+
+            // Retrieve the type of R
+            var R = typeof(C).BaseType.GetGenericArguments()[0];
+            
+            // Instantiate the controller implementing IController<R> via the standard constructor (OperatorConfiguration, IKubernetes, ILoggerFactory)
+            object controller = Activator.CreateInstance(typeof(C), _configuration, _client, _loggerFactory);
+
+            // Invoke AddController<R>()
+            typeof(Operator)
+                .GetMethod("AddController")
+                .MakeGenericMethod(R)
+                .Invoke(this, new object[] { controller, _configuration.WatchNamespace });
+            
+            return (IController) controller;
         }
 
         /// <summary>

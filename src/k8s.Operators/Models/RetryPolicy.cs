@@ -14,7 +14,7 @@ namespace k8s.Operators
         /// Initial time delay (in milliseconds) before to process again the event.
         /// After an attempt, the delay is incresead by multiplying it by DelayMultiplier
         /// </summary>
-        public int InitialDelay { get; set; } = 5 * 1000;
+        public int InitialDelay { get; set; } = 5000;
 
         /// <summary>
         /// The multiplier applied to the delay after each attempt. 

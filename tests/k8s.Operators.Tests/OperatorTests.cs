@@ -47,9 +47,9 @@ namespace k8s.Operators.Tests
         }
 
         [Fact]
-        public void StartAsync_CallsDisposeAndStopIfNoControllersArePresent()
+        public async Task StartAsync_CallsDisposeAndStopIfNoControllersArePresent()
         {
-            _operator.StartAsync();
+            await _operator.StartAsync();
 
             Assert.False(_operator.IsRunning);
             Assert.False(_operator.IsDisposing);
@@ -59,7 +59,8 @@ namespace k8s.Operators.Tests
         [Fact]
         public void StartAsync_ThrowsExceptionIfDisposed()
         {
-            _operator.AddController<TestableCustomResource>(new TestableController()).Dispose();
+            _operator.AddController<TestableCustomResource>(new TestableController());
+            _operator.Dispose();
 
             Assert.True(_operator.IsDisposed);
             Assert.False(_operator.IsDisposing);
@@ -69,18 +70,35 @@ namespace k8s.Operators.Tests
         [Fact]
         public void StartAsync_ThrowsExceptionIfStopped()
         {
-            _operator.AddController<TestableCustomResource>(new TestableController()).Stop();
+            _operator.AddController<TestableCustomResource>(new TestableController());
+            _operator.Stop();
 
             Assert.True(_operator.IsDisposed);
             Assert.False(_operator.IsDisposing);
             Assert.ThrowsAsync<ObjectDisposedException>(() => _operator.StartAsync());
         }
 
+        [Fact]
+        public async Task AddControllerOfType_CreatesAndAddController()
+        {
+            // Arrange
+            var resource = CreateCustomResource();
+
+            // Act
+            var controller = (TestableController) _operator.AddControllerOfType<TestableController>();
+            
+            // Assert
+            var task =_operator.StartAsync();
+            _operator.Exposed_OnIncomingEvent(WatchEventType.Added, resource);
+            _operator.Stop(); await task;
+            VerifyAddOrModifyIsCalledWith(controller, resource);
+        }
+
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
         [InlineData(WatchEventType.Bookmark)]
-        public async Task OnIncomingEvent_EventIsDispatchedToGenericController(WatchEventType eventType)
+        public async Task AddController_EventIsDispatchedToGenericController(WatchEventType eventType)
         {
             // Arrange
             var resource = CreateCustomResource();
