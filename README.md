@@ -6,6 +6,13 @@
 
 The C# Operator SDK implements a framework to build [Kubernetes operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
 
+## Features
+
+- Custom resource watches and event handling (namespace and cluster level)
+- Configurable controller retry-on-failure policy
+- Kubernetes graceful termination policy
+- Smart event queues (inspired by [Java Operator SDK](https://blog.container-solutions.com/a-deep-dive-into-the-java-operator-sdk))
+
 ## Usage
 
 In the `/samples/basic` directory you find a [sample operator](./samples/basic/README.md) that simulates the interaction with an external service and can be used as a template for real-world operators. 
@@ -14,15 +21,11 @@ In the `/samples/basic` directory you find a [sample operator](./samples/basic/R
 
 ## Roadmap
 
-- v1.0.0 (2020 Q4)
-    - Retry and auto-recovery on watching and event handling failures
-    - [Bookmark event](https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks) support
-    - Configurable policy for ResourceChangeTracker (flag skipSameGenerationEvents)
-- v1.1.0 (2021)
-    - Dynamic custom resource sample
-    - Dependency injection sample
-    - Single-instance check
-    - Leader election support
+- Configurable policy for ResourceChangeTracker (flag skipSameGenerationEvents)
+- [Bookmark event](https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks) support
+- Dynamic custom resource sample
+- Single-instance check
+- Leader election support
 
 ## References
 
