@@ -23,7 +23,7 @@ dotnet new console
 dotnet add package k8s.Operators --version 1.0.0-beta1
 ```
 
-Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a C# class for the custom resource:
+Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a class deriving from `CustomResource` for the custom resource:
 
 ```csharp
 // Set the CRD attributes
@@ -46,7 +46,7 @@ public class MyResource : CustomResource<MyResource.MyResourceSpec, MyResource.M
 }
 ```
 
-Define a C# class for the controller logic:
+Define a class deriving from `Controller` for the controller logic:
 
 ```csharp
 public class MyResourceController : Controller<MyResource>
@@ -89,7 +89,7 @@ static async Task<int> Main(string[] args)
 }
 ```
 
-> Note: Since `operator` is a reserved keyword in C#, it has been escaped with `@operator`. 
+> Curiosity: Since `operator` is a reserved keyword in C#, it has been escaped with `@operator`.
 
 Start the operator with:
 
