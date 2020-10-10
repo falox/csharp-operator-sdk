@@ -4,28 +4,125 @@
 
 # C# Operator SDK
 
-The C# Operator SDK implements a framework to build [Kubernetes operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
+The C# Operator SDK is a framework to build [Kubernetes operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/) with C# and .NET Core.
 
 ## Features
 
-- Custom resource watches and event handling (namespace and cluster level)
-- Configurable controller retry-on-failure policy
-- Kubernetes graceful termination policy
-- Smart event queues (inspired by [Java Operator SDK](https://blog.container-solutions.com/a-deep-dive-into-the-java-operator-sdk))
+- Easy custom resource and controller definition as C# classes
+- Custom resource event watchers at namespace and cluster scope
+- [Configurable retry-on-failure](https://github.com/falox/csharp-operator-sdk/blob/f989ab3ad5fdf322f681c863052338c982680bc5/samples/basic/deploy/operator.yaml#L27) policy
+- Smart concurrent event queues (inspired by [Container Solution](https://blog.container-solutions.com/a-deep-dive-into-the-java-operator-sdk)'s article)
+- Kubernetes [graceful termination policy](https://github.com/falox/csharp-operator-sdk/blob/f989ab3ad5fdf322f681c863052338c982680bc5/samples/basic/Program.cs#L89) support
 
 ## Usage
+
+Setup a new [.NET Core 3.1](https://dotnet.microsoft.com/download/dotnet-core/3.1) project and add the [C# Operator SDK package](https://www.nuget.org/packages/k8s.Operators):
+
+```bash
+dotnet new console
+dotnet add package k8s.Operators --version 1.0.0-beta1
+```
+
+Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a C# class for the custom resource:
+
+```csharp
+// Set the CRD attributes
+[CustomResourceDefinition("example.com", "v1", "myresources")]
+public class MyResource : CustomResource<MyResource.MyResourceSpec, MyResource.MyResourceStatus>
+{
+    // Define spec
+    public class MyResourceSpec
+    {
+        public int property1 { get; set; }
+        // :
+    }
+
+    // Define status
+    public class MyResourceStatus
+    {
+        public int property2 { get; set; }
+        // :
+    }
+}
+```
+
+Define a C# class for the controller logic:
+
+```csharp
+public class MyResourceController : Controller<MyResource>
+{
+    public MyResourceController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) 
+        : base(configuration, client, loggerFactory)
+    {
+    }
+
+    protected override async Task AddOrModifyAsync(MyResource resource, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Add/Modify {resource}");
+        // :
+        // Handle Add/Modify event
+    }
+
+    protected override async Task DeleteAsync(MyResource resource, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"Delete {resource}");
+        // :
+        // Handle Delete event
+    }
+}
+```
+
+Setup the operator in `Main()`:
+
+```csharp
+static async Task<int> Main(string[] args)
+{
+    // Create the Kubernetes client
+    using var client = new Kubernetes(KubernetesClientConfiguration.BuildConfigFromConfigFile());
+
+    // Setup the operator
+    var @operator = new Operator(OperatorConfiguration.Default, client);
+    @operator.AddControllerOfType<MyResourceController>();
+
+    // Start the operator
+    return await @operator.StartAsync();
+}
+```
+
+> Note: Since `operator` is a reserved keyword in C#, it has been escaped with `@operator`. 
+
+Start the operator with:
+
+```bash
+dotnet run
+```
 
 In the `/samples/basic` directory you find a [sample operator](./samples/basic/README.md) that simulates the interaction with an external service and can be used as a template for real-world operators. 
 
 [Follow the instructions](./samples/basic/README.md) to run it locally and deploy it to Kubernetes.
 
-## Roadmap
+## Compiling the source code
+
+```bash
+git clone https://github.com/falox/csharp-operator-sdk.git
+cd csharp-operator-sdk
+dotnet restore
+dotnet build
+```
+
+Running the tests:
+
+```bash
+dotnet test
+```
+
+## Upcoming features
 
 - Configurable policy for ResourceChangeTracker (flag skipSameGenerationEvents)
 - [Bookmark event](https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks) support
+- Leader election support
 - Dynamic custom resource sample
 - Single-instance check
-- Leader election support
 
 ## References
 
