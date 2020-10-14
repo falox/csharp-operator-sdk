@@ -20,7 +20,7 @@ Setup a new [.NET Core 3.1](https://dotnet.microsoft.com/download/dotnet-core/3.
 
 ```bash
 dotnet new console
-dotnet add package k8s.Operators --version 1.0.0
+dotnet add package k8s.Operators
 ```
 
 Assuming that you have already added a custom resource definition for `MyResource` in your Kubernetes cluster, define a class deriving from `CustomResource` for the custom resource schema:
