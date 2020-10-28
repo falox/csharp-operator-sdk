@@ -23,7 +23,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task ProcessEventAsync_AddOrModifyIsCalled(WatchEventType eventType)
         {
             // Arrange
@@ -42,6 +41,7 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Error)]
         [InlineData(WatchEventType.Deleted)]
+        [InlineData(WatchEventType.Bookmark)]
         public async Task ProcessEventAsync_AddOrModifyIsNotCalled(WatchEventType eventType)
         {
             // Arrange
@@ -60,7 +60,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task ProcessEventAsync_AddOrModifyIsNotCalledIfResourceIsAlreadyProcessed(WatchEventType eventType)
         {
             // Arrange
@@ -129,7 +128,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task ProcessEventAsync_MissingFinalizerIsAdded(WatchEventType eventType)
         {
             // Arrange
@@ -146,12 +144,13 @@ namespace k8s.Operators.Tests
 
         [Theory]
         [InlineData(WatchEventType.Error, true)]
-        [InlineData(WatchEventType.Deleted, true)]
         [InlineData(WatchEventType.Error, false)]
+        [InlineData(WatchEventType.Deleted, true)]
         [InlineData(WatchEventType.Deleted, false)]
+        [InlineData(WatchEventType.Bookmark, true)]
+        [InlineData(WatchEventType.Bookmark, false)]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         public async Task ProcessEventAsync_FinalizerIsNotAdded(WatchEventType eventType, bool withFinalizer)
         {
             // Arrange
@@ -249,10 +248,8 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         [InlineData(WatchEventType.Added, false)]
         [InlineData(WatchEventType.Modified, false)]
-        [InlineData(WatchEventType.Bookmark, false)]
         public async Task ProcessEventAsync_RetryOnFailure(WatchEventType eventType, bool delete)
         {
             // Arrange
@@ -270,10 +267,8 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         [InlineData(WatchEventType.Added, false)]
         [InlineData(WatchEventType.Modified, false)]
-        [InlineData(WatchEventType.Bookmark, false)]
         public async Task ProcessEventAsync_NoRetryAfterMaxAttempts(WatchEventType eventType, bool delete)
         {
             // Arrange
@@ -291,10 +286,8 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         [InlineData(WatchEventType.Added, false)]
         [InlineData(WatchEventType.Modified, false)]
-        [InlineData(WatchEventType.Bookmark, false)]
         public void ProcessEventAsync_NoRetryIfNewEventForSameResourceIsQueued(WatchEventType eventType, bool delete)
         {
             // Arrange
@@ -321,17 +314,15 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         [InlineData(WatchEventType.Added, false)]
         [InlineData(WatchEventType.Modified, false)]
-        [InlineData(WatchEventType.Bookmark, false)]
         public void ProcessEventAsync_RetryIfNewEventForAnotherResourceIsQueued(WatchEventType eventType, bool delete)
         {
             // Arrange
             var resource1 = CreateCustomResource(uid: "1", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
             var resource2 = CreateCustomResource(uid: "2", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
             _controller.ThrowExceptionOnNextEvents(1);
-            var block = _controller.BlockNextEvent();
+            var block1 = _controller.BlockNextEvent();
 
             // Event #1, will block
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource1), DUMMY_TOKEN);
@@ -340,21 +331,19 @@ namespace k8s.Operators.Tests
             var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource2), DUMMY_TOKEN);
 
             // Unblock #1
-            _controller.UnblockEvent(block);
+            _controller.UnblockEvent(block1);
 
             Task.WaitAll(task2, task1);
 
             // Assert
-            VerifyCompletedEvents(_controller, (resource2, deleteEvent: delete), (resource1, deleteEvent: delete));
+            VerifyCompletedEvents(_controller, (resource1, deleteEvent: delete), (resource2, deleteEvent: delete));
         }
 
         [Theory]
         [InlineData(WatchEventType.Added, true)]
         [InlineData(WatchEventType.Modified, true)]
-        [InlineData(WatchEventType.Bookmark, true)]
         [InlineData(WatchEventType.Added, false)]
         [InlineData(WatchEventType.Modified, false)]
-        [InlineData(WatchEventType.Bookmark, false)]
         public void ProcessEventAsync_NoRetryIfCancelIsRequested(WatchEventType eventType, bool delete)
         {
             // Arrange

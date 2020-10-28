@@ -119,7 +119,6 @@ dotnet test
 ## Upcoming features
 
 - Configurable policy for ResourceChangeTracker (flag skipSameGenerationEvents)
-- [Bookmark event](https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks) support
 - Leader election support
 - Dynamic custom resource sample
 - Single-instance check

@@ -25,18 +25,18 @@ namespace k8s.Operators.Tests
         public List<TestableCustomResource> Invocations_Delete = new List<TestableCustomResource>();
         public List<(TestableCustomResource resource, bool deleteEvent)> Invocations = new List<(TestableCustomResource resource, bool deleteEvent)>();        
         public List<(TestableCustomResource resource, bool deleteEvent)> CompletedEvents = new List<(TestableCustomResource resource, bool deleteEvent)>();
-        
-        private TaskCompletionSource<object> _tcs = null;
+
+        private Queue<TaskCompletionSource<object>> _signals = new Queue<TaskCompletionSource<object>>();
 
         protected override async Task AddOrModifyAsync(TestableCustomResource resource, CancellationToken cancellationToken)
         {
             Invocations_AddOrModify.Add(resource);
             Invocations.Add((resource, false));
 
-            if (_tcs != null)
+            if (_signals.TryDequeue(out var signal))
             {
                 // Wait for UnblockEvent()
-                await _tcs?.Task;
+                await signal?.Task;
             }
 
             if (_exceptionsToThrow > 0)
@@ -53,10 +53,10 @@ namespace k8s.Operators.Tests
             Invocations_Delete.Add(resource);
             Invocations.Add((resource, true));
 
-            if (_tcs != null)
+            if (_signals.TryDequeue(out var signal))
             {
                 // Wait for UnblockEvent()
-                await _tcs?.Task;
+                await signal?.Task;
             }
 
             if (_exceptionsToThrow > 0)
@@ -94,16 +94,17 @@ namespace k8s.Operators.Tests
         /// </summary>
         public TaskCompletionSource<object> BlockNextEvent()
         {
-            _tcs = new TaskCompletionSource<object>();
-            return _tcs;
+            var signal = new TaskCompletionSource<object>();
+            _signals.Enqueue(signal);
+            return signal;
         }
 
         /// <summary>
         /// Unblock the next call to AddOrModifyAsync or DeleteAsync
         /// </summary>
-        public void UnblockEvent(TaskCompletionSource<object> tcs)
+        public void UnblockEvent(TaskCompletionSource<object> signal)
         {
-            tcs.SetResult(true);
+            signal.SetResult(true);
         }
     }
 }
