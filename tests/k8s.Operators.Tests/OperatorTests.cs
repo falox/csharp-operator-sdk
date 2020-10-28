@@ -97,7 +97,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task AddController_EventIsDispatchedToGenericController(WatchEventType eventType)
         {
             // Arrange
@@ -120,7 +119,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task AddController_WatchDefaultNamespaceIfNotSpecified(WatchEventType eventType)
         {
             // Arrange
@@ -142,7 +140,6 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        [InlineData(WatchEventType.Bookmark)]
         public async Task OnIncomingEvent_EventIsDiscardedIfNoControllerIsAssociated(WatchEventType eventType)
         {
             // Arrange
@@ -162,10 +159,8 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added, "")]
         [InlineData(WatchEventType.Modified, "")]
-        [InlineData(WatchEventType.Bookmark, "")]
         [InlineData(WatchEventType.Added, null)]
         [InlineData(WatchEventType.Modified, null)]
-        [InlineData(WatchEventType.Bookmark, null)]
         public async Task OnIncomingEvent_EventsAreDispatchedToAssociatedControllers(WatchEventType eventType, string allNamespaceVariant)
         {
             // Arrange
@@ -186,6 +181,27 @@ namespace k8s.Operators.Tests
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(namespaceController, resource1);
             VerifyAddOrModifyIsCalledWith(genericController, resource2);
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Error)]
+        [InlineData(WatchEventType.Deleted)]
+        [InlineData(WatchEventType.Bookmark)]
+        public async Task OnIncomingEvent_EventsAreDispatchedAndIgnored(WatchEventType eventType)
+        {
+            // Arrange
+            var resource = CreateCustomResource(ns: "namespace1");
+            var controller = new TestableController(_client);
+            _operator.AddController(controller, "namespace1");
+            var task =_operator.StartAsync();
+
+            // Act
+            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            
+            // Assert
+            _operator.Stop(); await task;
+            VerifyAddOrModifyIsNotCalled(controller);
+            VerifyDeleteIsNotCalled(controller);
         }
     }
 }

@@ -61,6 +61,13 @@ namespace k8s.Operators
                 return;
             }
 
+            if (resourceEvent.Type == WatchEventType.Bookmark)
+            {
+                // Skip Bookmark events since there is nothing else to do
+                _logger.LogDebug($"Skip ProcessEvent, received Bookmark event, {resourceEvent.Resource}");
+                return;
+            }
+
             // Enqueue the event
             _eventManager.Enqueue(resourceEvent);
 
