@@ -322,7 +322,7 @@ namespace k8s.Operators.Tests
             var resource1 = CreateCustomResource(uid: "1", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
             var resource2 = CreateCustomResource(uid: "2", deletionTimeStamp: delete ? DateTime.Now : (DateTime?) null);
             _controller.ThrowExceptionOnNextEvents(1);
-            var block = _controller.BlockNextEvent();
+            var block1 = _controller.BlockNextEvent();
 
             // Event #1, will block
             var task1 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource1), DUMMY_TOKEN);
@@ -331,12 +331,12 @@ namespace k8s.Operators.Tests
             var task2 = _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource2), DUMMY_TOKEN);
 
             // Unblock #1
-            _controller.UnblockEvent(block);
+            _controller.UnblockEvent(block1);
 
             Task.WaitAll(task2, task1);
 
             // Assert
-            VerifyCompletedEvents(_controller, (resource2, deleteEvent: delete), (resource1, deleteEvent: delete));
+            VerifyCompletedEvents(_controller, (resource1, deleteEvent: delete), (resource2, deleteEvent: delete));
         }
 
         [Theory]
