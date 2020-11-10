@@ -130,6 +130,8 @@ namespace k8s.Operators.Samples.Basic
             
             configuration.WatchNamespace = Environment.GetEnvironmentVariable("WATCH_NAMESPACE");
 
+            configuration.WatchLabelSelector = Environment.GetEnvironmentVariable("WATCH_LABEL_SELECTOR");
+
             return configuration;
         }
     }
