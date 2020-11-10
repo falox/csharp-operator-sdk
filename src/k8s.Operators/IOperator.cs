@@ -13,8 +13,9 @@ namespace k8s.Operators
         /// </summary>
         /// <param name="controller">The controller for the custom resource</param>
         /// <param name="watchNamespace">The watched namespace. Set to null to watch all namespaces</param>
+        /// <param name="labelSelector">The <see href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#list-and-watch-filtering">label selector</see> to filter the sets of events returned/></param>
         /// <typeparam name="R">The type of the custom resource</typeparam>
-        IOperator AddController<R>(IController<R> controller, string watchNamespace = "default") where R : CustomResource;
+        IOperator AddController<R>(IController<R> controller, string watchNamespace = "default", string labelSelector = null) where R : CustomResource;
 
         /// <summary>
         /// Adds a new instance of a controller of type C to handle the events of the custom resource

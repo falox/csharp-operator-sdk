@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 
 namespace k8s.Operators.Tests
 {
@@ -10,9 +11,12 @@ namespace k8s.Operators.Tests
         }
 
         /// <summary>
-        /// Protected method exposed as Public
+        /// Simulates an incoming event for a given controller
         /// </summary>
-        public void Exposed_OnIncomingEvent(WatchEventType eventType, CustomResource resource) => OnIncomingEvent(eventType, resource);
+        public void SimulateEvent(IController controller, WatchEventType eventType, CustomResource resource) 
+        {
+            _watchers.Single(x => x.Controller == controller).OnIncomingEvent(eventType, resource);
+        }
 
         /// <summary>
         /// Protected method exposed as Public

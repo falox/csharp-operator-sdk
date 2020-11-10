@@ -16,6 +16,11 @@ namespace k8s.Operators
         public string WatchNamespace { get; set; } = "";
 
         /// <summary>
+        /// The label selector to filter events. Set to null to not filter.
+        /// </summary>
+        public string WatchLabelSelector { get; set; } = null;
+
+        /// <summary>
         /// The retry policy for the event handling.
         /// </summary>
         public RetryPolicy RetryPolicy { get; set; } = new RetryPolicy();

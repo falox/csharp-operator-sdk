@@ -89,7 +89,7 @@ namespace k8s.Operators.Tests
             
             // Assert
             var task =_operator.StartAsync();
-            _operator.Exposed_OnIncomingEvent(WatchEventType.Added, resource);
+            _operator.SimulateEvent(controller, WatchEventType.Added, resource);
             _operator.Stop(); await task;
             VerifyAddOrModifyIsCalledWith(controller, resource);
         }
@@ -97,90 +97,20 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        public async Task AddController_EventIsDispatchedToGenericController(WatchEventType eventType)
-        {
-            // Arrange
-            var resource = CreateCustomResource();
-            var genericController = new TestableController(_client, _loggerFactory);
-            var namespaceController = new TestableController(_client, _loggerFactory);
-
-            // Act
-            _operator.AddController(genericController, ""); // all namespaces
-            _operator.AddController(namespaceController, "namespace1");
-            
-            // Assert
-            var task =_operator.StartAsync();
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
-            _operator.Stop(); await task;
-            VerifyAddOrModifyIsCalledWith(genericController, resource);
-            VerifyAddOrModifyIsNotCalled(namespaceController);
-        }
-
-        [Theory]
-        [InlineData(WatchEventType.Added)]
-        [InlineData(WatchEventType.Modified)]
-        public async Task AddController_WatchDefaultNamespaceIfNotSpecified(WatchEventType eventType)
+        public async Task OnIncomingEvent_EventsAreDispatched(WatchEventType eventType)
         {
             // Arrange
             var resource = CreateCustomResource(ns: "default");
-            var genericController = new TestableController(_client, _loggerFactory);
-            var namespaceController = new TestableController(_client, _loggerFactory);
-
-            // Act
-            _operator.AddController(genericController);
-            
-            // Assert
-            var task =_operator.StartAsync();
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
-            _operator.Stop(); await task;
-            VerifyAddOrModifyIsCalledWith(genericController, resource);
-            VerifyAddOrModifyIsNotCalled(namespaceController);
-        }
-
-        [Theory]
-        [InlineData(WatchEventType.Added)]
-        [InlineData(WatchEventType.Modified)]
-        public async Task OnIncomingEvent_EventIsDiscardedIfNoControllerIsAssociated(WatchEventType eventType)
-        {
-            // Arrange
-            var resource = CreateCustomResource(ns: "namespace");
-            var namespaceController = new TestableController(_client);
-            _operator.AddController(namespaceController, "another-namespace");
+            var controller = new TestableController(_client, _loggerFactory);
+            _operator.AddController(controller);
             var task =_operator.StartAsync();
 
             // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            _operator.SimulateEvent(controller, eventType, resource);
             
             // Assert
             _operator.Stop(); await task;
-            VerifyAddOrModifyIsNotCalled(namespaceController);
-        }
-
-        [Theory]
-        [InlineData(WatchEventType.Added, "")]
-        [InlineData(WatchEventType.Modified, "")]
-        [InlineData(WatchEventType.Added, null)]
-        [InlineData(WatchEventType.Modified, null)]
-        public async Task OnIncomingEvent_EventsAreDispatchedToAssociatedControllers(WatchEventType eventType, string allNamespaceVariant)
-        {
-            // Arrange
-            var resource1 = CreateCustomResource(ns: "namespace1");
-            var resource2 = CreateCustomResource(ns: "namespace2");
-            var genericController = new TestableController(_client);
-            var namespaceController = new TestableController(_client);
-            _operator.AddController(genericController, allNamespaceVariant); // all namespaces
-            _operator.AddController(namespaceController, "namespace1");
-            _operator.AddController(namespaceController, "namespace3");
-            var task =_operator.StartAsync();
-
-            // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource1);
-            _operator.Exposed_OnIncomingEvent(eventType, resource2);
-            
-            // Assert
-            _operator.Stop(); await task;
-            VerifyAddOrModifyIsCalledWith(namespaceController, resource1);
-            VerifyAddOrModifyIsCalledWith(genericController, resource2);
+            VerifyAddOrModifyIsCalledWith(controller, resource);
         }
 
         [Theory]
@@ -196,12 +126,38 @@ namespace k8s.Operators.Tests
             var task =_operator.StartAsync();
 
             // Act
-            _operator.Exposed_OnIncomingEvent(eventType, resource);
+            _operator.SimulateEvent(controller, eventType, resource);
             
             // Assert
             _operator.Stop(); await task;
             VerifyAddOrModifyIsNotCalled(controller);
             VerifyDeleteIsNotCalled(controller);
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added, "")]
+        [InlineData(WatchEventType.Modified, "")]
+        [InlineData(WatchEventType.Added, null)]
+        [InlineData(WatchEventType.Modified, null)]
+        public async Task OnIncomingEvent_EventsAreDispatchedToAssociatedControllers(WatchEventType eventType, string allNamespaceVariant)
+        {
+            // Arrange
+            var resource1 = CreateCustomResource(ns: "namespace1");
+            var resource2 = CreateCustomResource(ns: "namespace2");
+            var controller1 = new TestableController(_client);
+            var controller2 = new TestableController(_client);
+            _operator.AddController(controller1, allNamespaceVariant);
+            _operator.AddController(controller2, "namespace2");
+            var task =_operator.StartAsync();
+
+            // Act
+            _operator.SimulateEvent(controller1, eventType, resource1);
+            _operator.SimulateEvent(controller2, eventType, resource2);
+            
+            // Assert
+            _operator.Stop(); await task;
+            VerifyAddOrModifyIsCalledWith(controller1, resource1);
+            VerifyAddOrModifyIsCalledWith(controller2, resource2);
         }
     }
 }
