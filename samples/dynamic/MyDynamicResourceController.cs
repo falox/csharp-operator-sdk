@@ -1,18 +1,19 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Dynamic;
 using k8s.Models;
 using Microsoft.Extensions.Logging;
 
-namespace k8s.Operators.Samples.Basic
+namespace k8s.Operators.Samples.Dynamic
 {
-    public class MyResourceController : Controller<MyResource>
+    public class MyDynamicResourceController : Controller<MyDynamicResource>
     {        
-        public MyResourceController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
+        public MyDynamicResourceController(OperatorConfiguration configuration, IKubernetes client, ILoggerFactory loggerFactory = null) : base(configuration, client, loggerFactory)
         {
         }
 
-        protected override async Task AddOrModifyAsync(MyResource resource, CancellationToken cancellationToken)
+        protected override async Task AddOrModifyAsync(MyDynamicResource resource, CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Begin AddOrModify {resource}");
             
@@ -24,15 +25,15 @@ namespace k8s.Operators.Samples.Basic
                 // Update the resource
                 resource.Metadata.EnsureAnnotations()["custom-key"] = DateTime.UtcNow.ToString("s");
                 await UpdateResourceAsync(resource, cancellationToken);
-
+                
                 // Update the status
-                if (resource.Status == null)
+                if (resource.Status?.actualProperty != resource.Spec.desiredProperty)
                 {
-                    resource.Status = new MyResource.MyResourceStatus();
-                }
-                if (resource.Status.Actual != resource.Spec.Desired)
-                {
-                    resource.Status.Actual = resource.Spec.Desired;
+                    if (resource.Status == null)
+                    {
+                        resource.Status = new ExpandoObject();
+                    }
+                    resource.Status.actualProperty = resource.Spec.desiredProperty;
                     await UpdateStatusAsync(resource, cancellationToken);
                 }
             }
@@ -47,7 +48,7 @@ namespace k8s.Operators.Samples.Basic
             _logger.LogInformation($"End AddOrModify {resource}");
         }
 
-        protected override async Task DeleteAsync(MyResource resource, CancellationToken cancellationToken)
+        protected override async Task DeleteAsync(MyDynamicResource resource, CancellationToken cancellationToken)
         {
             _logger.LogInformation($"Begin Delete {resource}");
             

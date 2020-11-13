@@ -7,13 +7,13 @@ using Microsoft.Rest;
 using k8s.Operators.Logging;
 using Newtonsoft.Json;
 
-namespace k8s.Operators.Samples.Basic
+namespace k8s.Operators.Samples.Dynamic
 {
     class Program
     {
         static async Task<int> Main(string[] args) 
         {
-            IOperator basicOperator = null;
+            IOperator dynamicOperator = null;
 
             // Setup logging
             using var loggerFactory = SetupLogging(args);
@@ -31,11 +31,11 @@ namespace k8s.Operators.Samples.Basic
 
                 // Setup the operator
                 var configuration = GetOperatorConfiguration();
-                basicOperator = new Operator(configuration, client, loggerFactory);
-                basicOperator.AddControllerOfType<MyResourceController>();
+                dynamicOperator = new Operator(configuration, client, loggerFactory);
+                dynamicOperator.AddControllerOfType<MyDynamicResourceController>();
 
                 // Start the operator
-                return await basicOperator.StartAsync();
+                return await dynamicOperator.StartAsync();
             }
             catch (Exception exception)
             {
@@ -92,13 +92,13 @@ namespace k8s.Operators.Samples.Basic
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => 
                 {
                     logger.LogDebug("Received SIGTERM");
-                    basicOperator?.Stop();
+                    dynamicOperator?.Stop();
                 };
 
                 // SIGINT: try to shut down gracefully on the first attempt
                 Console.CancelKeyPress += (s, e) => 
                 {
-                    bool isFirstSignal = !basicOperator.IsDisposing;
+                    bool isFirstSignal = !dynamicOperator.IsDisposing;
                     logger.LogDebug($"Received SIGINT, first signal: {isFirstSignal}");
                     if (isFirstSignal)
                     {

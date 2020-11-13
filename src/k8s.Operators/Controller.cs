@@ -318,6 +318,8 @@ namespace k8s.Operators
 
         private async Task<T> ReplaceCustomResourceAsync(T resource, CancellationToken cancellationToken)
         {
+            _logger.LogDebug($"Replace Custom Resource, {(resource == null ? "" : JsonConvert.SerializeObject(resource))}");
+
             // Replace the resource
             var result = await _client.ReplaceNamespacedCustomObjectAsync(
                 resource,
@@ -334,6 +336,8 @@ namespace k8s.Operators
 
         private async Task<T> PatchCustomResourceStatusAsync<R>(R resource, IJsonPatchDocument patch, CancellationToken cancellationToken) where R : T, IStatus
         {
+            _logger.LogDebug($"Patch Status, {(patch == null ? "" : JsonConvert.SerializeObject(patch))}");
+
             // Patch the status
             var result = await _client.PatchNamespacedCustomObjectStatusAsync(
                 new V1Patch(patch), 

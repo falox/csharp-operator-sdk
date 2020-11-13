@@ -1,21 +1,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: basic-operator
+  name: dynamic-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: basic-operator
+      name: dynamic-operator
   template:
     metadata:
       labels:
-        name: basic-operator
+        name: dynamic-operator
     spec:
-      serviceAccountName: basic-operator
+      serviceAccountName: dynamic-operator
       containers:
-        - name: basic-operator
-          image: csharp-basic-operator
+        - name: dynamic-operator
+          image: csharp-dynamic-operator
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
