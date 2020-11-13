@@ -366,6 +366,25 @@ namespace k8s.Operators.Tests
             // Assert
             VerifyCompletedEvents(_controller);
         }
+        
+        [Theory]
+        [InlineData(WatchEventType.Added)]
+        [InlineData(WatchEventType.Modified)]
+        public async Task ProcessEventAsync_WithDynamicCustomResource(WatchEventType eventType)
+        {            
+            // Arrange
+            var resource = new TestableDynamicCustomResource();
+            resource.Spec.property = "desired";
+            resource.Status.property = "actual";
+            var resourceEvent = new CustomResourceEvent(eventType, resource);
+            var controller = new TestableDynamicController();
+
+            // Act
+            await controller.ProcessEventAsync(resourceEvent, DUMMY_TOKEN);
+
+            // Assert
+            Assert.Equal(resource.Spec.property, resource.Status.property);
+        }
 
         private void VerifyNoOtherApiIsCalled() => _clientMock.VerifyNoOtherCalls();
 
