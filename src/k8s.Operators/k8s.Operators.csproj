@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AssemblyName>k8s.Operators</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>k8s.Operators.snk</AssemblyOriginatorKeyFile>    
   </PropertyGroup>
