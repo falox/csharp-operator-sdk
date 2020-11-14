@@ -116,13 +116,6 @@ Running the tests:
 dotnet test
 ```
 
-## Upcoming features
-
-- Configurable policy for ResourceChangeTracker (flag skipSameGenerationEvents)
-- Leader election support
-- Dynamic custom resource sample
-- Single-instance check
-
 ## References
 
 - Jason Dobies and Joshua Wood, [Kubernetes Operators](https://www.oreilly.com/library/view/kubernetes-operators/9781492048039/), O'Reilly, 2020
