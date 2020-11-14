@@ -60,7 +60,7 @@ namespace k8s.Operators.Tests
         [Theory]
         [InlineData(WatchEventType.Added)]
         [InlineData(WatchEventType.Modified)]
-        public async Task ProcessEventAsync_AddOrModifyIsNotCalledIfResourceIsAlreadyProcessed(WatchEventType eventType)
+        public async Task ProcessEventAsync_DuplicateGenerationsAreDiscardedByDefault(WatchEventType eventType)
         {
             // Arrange
             var resource_v1 = CreateCustomResource(generation: 1);
@@ -68,12 +68,33 @@ namespace k8s.Operators.Tests
 
             // Act
             await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
-            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
-            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN);
+            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN); // duplicate generation
+            await _controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN); 
 
             // Assert
             VerifyAddOrModifyIsCalledWith(_controller, resource_v1, resource_v2);
             VerifyDeleteIsNotCalled(_controller);
+            VerifyNoOtherApiIsCalled();
+        }
+
+        [Theory]
+        [InlineData(WatchEventType.Added)]
+        [InlineData(WatchEventType.Modified)]
+        public async Task ProcessEventAsync_DuplicateGenerationsAreProcessedIfForcedByConfiguration(WatchEventType eventType)
+        {
+            // Arrange
+            var controller = new TestableController(new OperatorConfiguration() { DiscardDuplicateSpecGenerations = false },_client);
+            var resource_v1 = CreateCustomResource(generation: 1);
+            var resource_v2 = CreateCustomResource(generation: 2);
+
+            // Act
+            await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN);
+            await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v1), DUMMY_TOKEN); // duplicate generation
+            await controller.ProcessEventAsync(new CustomResourceEvent(eventType, resource_v2), DUMMY_TOKEN); 
+
+            // Assert
+            VerifyAddOrModifyIsCalledWith(controller, resource_v1, resource_v1, resource_v2);
+            VerifyDeleteIsNotCalled(controller);
             VerifyNoOtherApiIsCalled();
         }
 

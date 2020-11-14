@@ -29,7 +29,7 @@ namespace k8s.Operators
             this._client = client;
             this._logger = loggerFactory?.CreateLogger<Controller<T>>() ?? SilentLogger.Instance;
             this._eventManager = new EventManager(loggerFactory);
-            this._changeTracker = new ResourceChangeTracker(loggerFactory);
+            this._changeTracker = new ResourceChangeTracker(configuration, loggerFactory);
             this._crd = (CustomResourceDefinitionAttribute) Attribute.GetCustomAttribute(typeof(T), typeof(CustomResourceDefinitionAttribute));
             this.RetryPolicy = configuration.RetryPolicy;
         }

@@ -13,11 +13,13 @@ namespace k8s.Operators
 
         // Last generation number successfully processed, for each resource
         private readonly Dictionary<string, long> _lastResourceGenerationProcessed;
+        private readonly bool _discardDuplicates;
 
-        public ResourceChangeTracker(ILoggerFactory loggerFactory)
+        public ResourceChangeTracker(OperatorConfiguration configuration, ILoggerFactory loggerFactory)
         {
             this._logger = loggerFactory?.CreateLogger<ResourceChangeTracker>() ?? SilentLogger.Instance;
             this._lastResourceGenerationProcessed = new Dictionary<string, long>();
+            this._discardDuplicates = configuration.DiscardDuplicateSpecGenerations;
         }
 
         /// <summary>
@@ -25,11 +27,18 @@ namespace k8s.Operators
         /// </summary>
         public bool IsResourceGenerationAlreadyHandled(CustomResource resource)
         {
-            bool processedInPast = _lastResourceGenerationProcessed.TryGetValue(resource.Metadata.Uid, out long resourceGeneration);
+            if (_discardDuplicates)
+            {
+                bool processedInPast = _lastResourceGenerationProcessed.TryGetValue(resource.Metadata.Uid, out long resourceGeneration);
 
-            return processedInPast 
-                && resource.Metadata.Generation != null 
-                && resourceGeneration >= resource.Metadata.Generation.Value;
+                return processedInPast 
+                    && resource.Metadata.Generation != null 
+                    && resourceGeneration >= resource.Metadata.Generation.Value;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         /// <summary>
